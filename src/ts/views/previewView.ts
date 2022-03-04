@@ -5,7 +5,7 @@ export class PreviewView extends View<Recipe> {
   protected parentElement: Element;
   generateMarkup(): string {
     const id = window.location.hash.slice(1);
-    return `
+    return ` 
     <li class="preview">
       <a class="preview__link ${
         this.data.id === id ? 'preview__link--active' : ''

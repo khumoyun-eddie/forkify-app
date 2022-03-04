@@ -1,4 +1,4 @@
-import axios, { AxiosPromise, AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { API_URL, RES_PER_PAGE } from './config';
 import { getJSON } from './helpers';
 
@@ -103,7 +103,6 @@ export class Model {
         ing.quantity =
           (ing.quantity * newServings) / this.state.recipe.servings;
       }
-      // newQty = oldQty * newServings / oldServings // 2 * 8 / 4 = 4
     });
 
     this.state.recipe.servings = newServings;
