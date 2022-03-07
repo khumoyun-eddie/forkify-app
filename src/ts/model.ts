@@ -1,23 +1,30 @@
-import axios, { AxiosResponse } from 'axios';
-import { API_URL, RES_PER_PAGE } from './config';
-import { getJSON } from './helpers';
+import { API_KEY, API_URL, RES_PER_PAGE } from "./config";
+import { getJSON } from "./helpers";
 
 export interface State {
   recipe?: Recipe;
   search?: Search;
-  bookmarks?: Recipe[];
+  bookmarks?: RecipeShort[];
 }
 
 export interface Recipe {
-  id: string;
+  id?: string;
   title: string;
   publisher: string;
-  sourceUrl: string;
-  image: string;
+  sourceUrl?: string;
+  image?: string;
   servings: number;
-  cookingTime: number;
+  cookingTime?: number;
   ingredients: ObjectOfArray;
   bookmarked?: boolean;
+  key?: string;
+}
+
+export interface RecipeShort {
+  id?: string;
+  title: string;
+  publisher: string;
+  image?: string;
 }
 
 export interface Search {
@@ -33,34 +40,37 @@ export class Model {
   state: State = {
     search: {
       page: 1,
+      results: [],
       resultsPerPage: RES_PER_PAGE,
     },
     bookmarks: [],
   };
   constructor() {
-    const storage = localStorage.getItem('bookmarks');
+    const storage = localStorage.getItem("bookmarks");
     if (storage) this.state.bookmarks = JSON.parse(storage);
   }
 
+  private createRecipeObject = (data) => {
+    const recipe = data;
+
+    return {
+      id: recipe.id,
+      title: recipe.title,
+      publisher: recipe.publisher,
+      sourceUrl: recipe.source_url,
+      image: recipe.image_url,
+      servings: recipe.servings,
+      cookingTime: recipe.cooking_time,
+      ingredients: recipe.ingredients,
+      ...(recipe.key && { key: recipe.key }),
+    };
+  };
+
   loadRecipe = async (id: string): Promise<void> => {
     try {
-      const recipeReceived = await axios
-        .get(`${API_URL}${id}`)
-        .then((response: AxiosResponse) => {
-          const { recipe } = response.data.data;
-          return recipe;
-        });
+      const data = await getJSON(`${API_URL}${id}?key=${API_KEY}`, undefined);
 
-      this.state.recipe = {
-        id: recipeReceived.id,
-        title: recipeReceived.title,
-        publisher: recipeReceived.publisher,
-        sourceUrl: recipeReceived.source_url,
-        image: recipeReceived.image_url,
-        servings: recipeReceived.servings,
-        cookingTime: recipeReceived.cooking_time,
-        ingredients: recipeReceived.ingredients,
-      };
+      this.state.recipe = this.createRecipeObject(data.data.recipe);
     } catch (error) {
       console.log(`${error} 💥💥💥`);
       throw error;
@@ -70,9 +80,12 @@ export class Model {
   loadSearchResults = async (query: string): Promise<void> => {
     try {
       this.state.search.query = query;
-      const { data } = await getJSON(`${API_URL}?search=${query}`);
+      const { data } = await getJSON(
+        `${API_URL}?search=${query}&key=${API_KEY}`,
+        undefined
+      );
 
-      this.state.search.results = data.recipes.map(rec => {
+      this.state.search.results = data.recipes.map((rec) => {
         return {
           id: rec.id,
           title: rec.title,
@@ -86,20 +99,18 @@ export class Model {
     }
   };
 
-  getSearchResultsPage(
-    page = this.state.search.page
-  ): { [key: string]: string }[] {
+  getSearchResultsPage = (page = this.state.search.page): RecipeShort[] => {
     this.state.search.page = page;
 
     const start = (page - 1) * this.state.search.resultsPerPage; // 0
     const end = page * this.state.search.resultsPerPage; // 10
 
     return this.state.search.results.slice(start, end); // 0, 9
-  }
+  };
 
   updateServings(newServings: number): void {
-    this.state.recipe.ingredients.forEach(ing => {
-      if (typeof ing.quantity === 'number') {
+    this.state.recipe.ingredients.forEach((ing) => {
+      if (typeof ing.quantity === "number") {
         ing.quantity =
           (ing.quantity * newServings) / this.state.recipe.servings;
       }
@@ -109,10 +120,10 @@ export class Model {
   }
 
   persistBookmarks = (): void => {
-    localStorage.setItem('bookmarks', JSON.stringify(this.state.bookmarks));
+    localStorage.setItem("bookmarks", JSON.stringify(this.state.bookmarks));
   };
 
-  addBookmark = (recipe: Recipe): void => {
+  addBookmark = (recipe: RecipeShort): void => {
     // Add bookmark
     this.state.bookmarks.push(recipe);
 
@@ -123,11 +134,49 @@ export class Model {
 
   deleteBookmark = (id: string): void => {
     // Delete bookmark
-    const index = this.state.bookmarks.findIndex(el => el.id === id);
+    const index = this.state.bookmarks.findIndex((el) => el.id === id);
     this.state.bookmarks.splice(index, 1);
 
     // Mark current recipe as NOT bookmarked
     if (id === this.state.recipe.id) this.state.recipe.bookmarked = false;
     this.persistBookmarks();
+  };
+
+  uploadRecipe = async (newRecipe: Recipe): Promise<void> => {
+    try {
+      const ingredients = Object.entries(newRecipe)
+        .filter((entry) => entry[0].startsWith("ingredient") && entry[1] !== "")
+        .map((ing) => {
+          const ingArr = ing[1].split(",").map((el: string) => el.trim());
+          if (ingArr.length !== 3)
+            throw new Error(
+              "Wrong ingredient format! Please use the correct format"
+            );
+
+          const [quantity, unit, description] = ingArr;
+
+          return { quantity: quantity ? +quantity : null, unit, description };
+        });
+
+      const recipe = {
+        title: newRecipe.title,
+        source_url: newRecipe.sourceUrl,
+        image_url: newRecipe.image,
+        publisher: newRecipe.publisher,
+        cooking_time: +newRecipe.cookingTime,
+        servings: +newRecipe.servings,
+        ingredients,
+      };
+
+      const data = await getJSON(`${API_URL}?key=${API_KEY}`, recipe);
+      console.log("data:", data.data.recipe);
+
+      this.state.recipe = this.createRecipeObject(data.data.recipe);
+      // console.log(this.state.recipe);
+
+      this.addBookmark(this.state.recipe);
+    } catch (error) {
+      throw error;
+    }
   };
 }

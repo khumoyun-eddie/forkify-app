@@ -1,18 +1,18 @@
-import View from './View';
-import { Recipe } from '../model';
+import View from "./View";
+import { RecipeShort } from "../model";
 
-class ResultsView extends View<Array<any>> {
+class ResultsView extends View<RecipeShort[]> {
   protected parentElement: HTMLUListElement =
-    document.querySelector('.results');
+    document.querySelector(".results");
   protected errorMessage: string =
-    'No recipes found for your query! Please try again ;)';
-  protected message: string = '';
+    "No recipes found for your query! Please try again ;)";
+  protected message: string = "";
 
   protected generateMarkup(): string {
-    return this.data.map(this.generateMarkupPreview).join('');
+    return this.data.map(this.generateMarkupPreview).join("");
   }
 
-  protected generateMarkupPreview(result: Recipe): string {
+  protected generateMarkupPreview(result: RecipeShort): string {
     return `
     <li class="preview">
       <a class="preview__link" href="#${result.id}">

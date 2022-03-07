@@ -1,14 +1,14 @@
-import { Recipe } from '../model';
-import View from './View';
+import { RecipeShort } from "../model";
+import View from "./View";
 
-export class PreviewView extends View<Recipe> {
+export class PreviewView extends View<RecipeShort> {
   protected parentElement: Element;
-  generateMarkup(): string {
+  protected generateMarkup(): string {
     const id = window.location.hash.slice(1);
     return ` 
     <li class="preview">
       <a class="preview__link ${
-        this.data.id === id ? 'preview__link--active' : ''
+        this.data.id === id ? "preview__link--active" : ""
       }" href="#${this.data.id}">
         <figure class="preview__fig">
           <img src="${this.data.image}" alt="${this.data.title}" />
